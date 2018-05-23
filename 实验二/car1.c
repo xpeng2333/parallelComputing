@@ -7,8 +7,8 @@
 #include <string.h>
 #include <time.h>
 
-#define MAX_V 100
-#define P 0.1
+const int MAX_V = 100;
+const float P = 0.1;
 
 typedef struct car {
     unsigned int x; //车位置
