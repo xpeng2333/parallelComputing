@@ -1,6 +1,6 @@
-#include "mpi.h"
 #include <ctype.h>
 #include <limits.h>
+#include <mpi.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -78,8 +78,7 @@ int main(int argc, char const *argv[]) {
         for (c = 0; c < carPerRank; c++) {
             if (my_ptr[c].flag_speed && (my_ptr[c].v < MAX_V)) {
                 my_ptr[c].v++;
-            }
-            if (my_ptr[c].flag_slow) {
+            } else if (my_ptr[c].flag_slow) {
                 my_ptr[c].v = my_ptr[c].d - 1;
                 my_ptr[c].flag_slow = false;
             }
@@ -93,7 +92,7 @@ int main(int argc, char const *argv[]) {
                 my_ptr[c].flag_speed = false;
             }
 
-            if ((rand() * 1.0 / RAND_MAX < P) && my_ptr[c].v > 0)
+            if (my_ptr[c].v > 0 && (rand() * 1.0 / RAND_MAX < P))
                 my_ptr[c].v--;
         }
         MPI_Barrier(shmcomm);
