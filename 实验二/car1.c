@@ -42,7 +42,8 @@ int main(int argc, char const *argv[]) {
     MPI_Info_create(&win_info);
     MPI_Info_set(win_info, "alloc_shared_noncontig", "true");
     MPI_Win win;
-    int carPerRank = (carNum + ProcNum - 1) / ProcNum;
+    carNum += carNum % ProcNum;
+    int carPerRank = carNum / ProcNum;
     unsigned int *base_ptr = NULL;
 
     if (ProcRank == 0)
@@ -80,26 +81,18 @@ int main(int argc, char const *argv[]) {
             }
             if (my_ptr[c].flag_slow) {
                 my_ptr[c].v = my_ptr[c].d - 1;
+                my_ptr[c].flag_slow = false;
             }
             my_ptr[c].flag_speed = true;
-            my_ptr[c].flag_slow = false;
             for (i = c + 1; i < carNum - offset; i++) {
                 if (my_ptr[i].x > my_ptr[c].x)
                     break;
             }
-            if (i == carNum - offset) {
-                my_ptr[c].flag_speed = true;
-                my_ptr[c].flag_slow = false;
-            } else {
-                my_ptr[c].d = my_ptr[i].x - my_ptr[c].x;
-                if (my_ptr[c].d > my_ptr[c].v) {
-                    my_ptr[c].flag_speed = true;
-                    my_ptr[c].flag_slow = false;
-                } else {
-                    my_ptr[c].flag_slow = true;
-                    my_ptr[c].flag_speed = false;
-                }
+            if ((i < carNum - offset) && (my_ptr[c].d <= my_ptr[c].v)) {
+                my_ptr[c].flag_slow = true;
+                my_ptr[c].flag_speed = false;
             }
+
             if ((rand() * 1.0 / RAND_MAX < P) && my_ptr[c].v > 0)
                 my_ptr[c].v--;
         }
