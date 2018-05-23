@@ -21,29 +21,35 @@ int main() {
             omp_set_num_threads(NUM_THREADS);
             int i, num = 0;
             struct timeval t1, t2, t3, t4;
-            int totalTime1, totalTime2;
+            double totalTime1, totalTime2;
             gettimeofday(&t1, NULL);
+            for (int k = 0; k < 100; k++) {
 #pragma omp parallel for reduction(+ : num)
-            for (i = 2; i <= N; i++) {
-                num += isPrime(i);
+                for (i = 2; i <= N; i++) {
+                    num += isPrime(i);
+                }
             }
             gettimeofday(&t2, NULL);
             // printf("素数共有 %d 个\n", num);
             totalTime1 =
                 (t2.tv_sec - t1.tv_sec) * 1000000 + (t2.tv_usec - t1.tv_usec);
-            printf("并行时间: %d us  ", totalTime1);
+            totalTime1 /= 100.0;
+            printf("并行时间: %lf us  ", totalTime1);
 
             num = 0;
             gettimeofday(&t3, NULL);
-            for (i = 2; i <= N; i++) {
-                num += isPrime(i);
+            for (int k = 0; k < 100; k++) {
+                for (i = 2; i <= N; i++) {
+                    num += isPrime(i);
+                }
             }
             gettimeofday(&t4, NULL);
             totalTime2 =
                 (t4.tv_sec - t3.tv_sec) * 1000000 + (t4.tv_usec - t3.tv_usec);
+            totalTime2 /= 100.0;
             // printf("素数共有 %d 个\n", num);
-            printf("串行时间: %d us  ", totalTime2);
-            printf("加速比: %.9lf\n", (double)totalTime2 / (double)totalTime1);
+            printf("串行时间: %lf us  ", totalTime2);
+            printf("加速比: %lf\n", (double)totalTime2 / (double)totalTime1);
         }
         printf("\n");
     }

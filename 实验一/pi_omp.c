@@ -17,34 +17,38 @@ int main(int argc, char const *argv[]) {
             int i;
             double pi, sum = 0.0, h, x;
             struct timeval t1, t2, t3, t4;
-            int totalTime1, totalTime2;
+            double totalTime1, totalTime2;
             gettimeofday(&t1, NULL);
-            h = 1.0 / N;
+            for (int k = 0; k < 100; k++) {
+                h = 1.0 / N;
 #pragma omp parallel for reduction(+ : sum)
-            for (i = 1; i <= N; i++) {
-                // x = h * ((double)i - 0.5);
-                sum += f(h * ((double)i - 0.5));
+                for (i = 1; i <= N; i++) {
+                    sum += f(h * ((double)i - 0.5));
+                }
+                pi = h * sum;
             }
-            pi = h * sum;
             gettimeofday(&t2, NULL);
             totalTime1 =
                 (t2.tv_sec - t1.tv_sec) * 1000000 + (t2.tv_usec - t1.tv_usec);
             // printf("%f ", pi);
-            printf("并行时间: %d us  ", totalTime1);
+            totalTime1 /= 100.0;
+            printf("并行时间: %lf us  ", totalTime1);
             gettimeofday(&t3, NULL);
-            h = 1.0 / N;
-            sum = 0.0;
-            for (i = 1; i <= N; i++) {
-                // x = h * ((double)i - 0.5);
-                sum += f(h * ((double)i - 0.5));
+            for (int k = 0; k < 100; k++) {
+                h = 1.0 / N;
+                sum = 0.0;
+                for (i = 1; i <= N; i++) {
+                    sum += f(h * ((double)i - 0.5));
+                }
+                pi = h * sum;
             }
-            pi = h * sum;
             gettimeofday(&t4, NULL);
             totalTime2 =
                 (t4.tv_sec - t3.tv_sec) * 1000000 + (t4.tv_usec - t3.tv_usec);
+            totalTime2 /= 100.0;
             // printf("%f ", pi);
-            printf("串行时间: %d us  ", totalTime2);
-            printf("加速比: %.9lf\n", (double)totalTime2 / (double)totalTime1);
+            printf("串行时间: %lf us  ", totalTime2);
+            printf("加速比: %lf\n", (double)totalTime2 / (double)totalTime1);
         }
         printf("\n");
     }

@@ -6,7 +6,6 @@ double f(double a) { return (4.0 / (1.0 + a * a)); }
 
 int main(int argc, char *argv[]) {
     int ProcRank, ProcNum, n = 0, i;
-    // double PI25DT = 3.141592653589793238462643;
     int N_table[4] = {1000, 10000, 50000, 100000};
     double mypi, pi, h, sum, x, t1, t2, t3, t4, totaltime1, totaltime2;
     MPI_Init(&argc, &argv);
