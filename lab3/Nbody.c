@@ -33,7 +33,6 @@ typedef struct body {
 } body;
 
 void compute_force(body *thisBody, body *totalPtr, int bodyNum) {
-    // body *tmp = NULL;
     double distance = 0.0;
     double disX = 0.0;
     double disY = 0.0;
@@ -79,7 +78,8 @@ int main(int argc, char const *argv[]) {
     }
     int i, c;
     double currTime = 0.0;
-    double delta_t = 1.0 / moveTime;
+    double frequency=100.0;
+    double delta_t = 1.0 / frequency;
     clock_t start, finish;
     int ProcRank, ProcNum;
     MPI_Comm shmcomm;
@@ -93,9 +93,7 @@ int main(int argc, char const *argv[]) {
     MPI_Info_set(win_info, "alloc_shared_noncontig", "true");
     MPI_Win win;
     body *base_ptr = NULL;
-
     unsigned int localBodyNum = bodyNum / ProcNum;
-
     if (ProcRank == 0)
         MPI_Win_allocate_shared(bodyNum * sizeof(body), sizeof(body), win_info,
                                 shmcomm, &base_ptr, &win);
