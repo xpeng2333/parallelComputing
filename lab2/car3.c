@@ -1,6 +1,5 @@
 #include <ctype.h>
 #include <limits.h>
-#include <malloc.h>
 #include <mpi.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -15,7 +14,8 @@ typedef struct car {
     unsigned int x; //车位置
     unsigned int v; //车速度
     unsigned int d;
-    bool flag;
+    bool flag_speed;
+    bool flag_slow;
 } car;
 
 int main(int argc, char const *argv[]) {
@@ -25,13 +25,9 @@ int main(int argc, char const *argv[]) {
     }
     int i, c;
     int carNum = atoi(argv[1]);
-    int circleNum = atoi(argv[2]);
-    if (circleNum <= 0 || carNum <= 0) {
-        printf("车数和时间数需大于0！\n");
-        exit(-1);
-    }
+    int circleNum = atoi(argv[2]) + 1;
     clock_t start, finish;
-    int ProcRank, ProcNum, namelen, currRank = 0;
+    int ProcRank, ProcNum, namelen;
     MPI_Comm shmcomm;
     char name[MPI_MAX_PROCESSOR_NAME];
     MPI_Init(NULL, NULL);
@@ -48,15 +44,14 @@ int main(int argc, char const *argv[]) {
     int carPerRank = carNum / ProcNum;
     int max_len = circleNum * MAX_V;
     unsigned int *base_ptr = NULL;
-    car *localTable = (car *)malloc(carPerRank * sizeof(car));
-    if (localTable == NULL) {
-        printf("资源分配失败!\n");
-        exit(-1);
-    }
+    printf("haha\n");
+    car localTable[carPerRank];
+    printf("hehe\n");
     for (i = 0; i < carPerRank; i++) {
         localTable[i].v = localTable[i].x = 0;
         localTable[i].d = UINT32_MAX;
-        localTable[i].flag = false;
+        localTable[i].flag_speed = false;
+        localTable[i].flag_slow = false;
     }
 
     if (ProcRank == 0)
@@ -70,7 +65,7 @@ int main(int argc, char const *argv[]) {
     int dispunit;
     MPI_Aint sz;
     int *my_ptr = NULL;
-    int flag = 0;
+    int tmp;
     MPI_Win_lock_all(0, win);
     MPI_Win_shared_query(win, 0, &sz, &dispunit, &my_ptr);
     if (ProcRank == 0) {
@@ -79,6 +74,7 @@ int main(int argc, char const *argv[]) {
             my_ptr[i] = 0;
         }
     }
+
     srand((unsigned int)time(NULL) + (unsigned int)ProcRank);
     MPI_Barrier(shmcomm);
     if (ProcRank == 0)
@@ -86,36 +82,34 @@ int main(int argc, char const *argv[]) {
     while (circleNum-- > 0) {
         MPI_Barrier(shmcomm);
         for (c = 0; c < carPerRank; c++) {
-            if (localTable[c].flag) {
-                localTable[c].v = localTable[c].d;
-                localTable[c].flag = false;
-            } else if (localTable[c].v < MAX_V) {
+            if (localTable[c].flag_speed && (localTable[c].v < MAX_V)) {
                 localTable[c].v++;
+            } else if (localTable[c].flag_slow) {
+                localTable[c].v = localTable[c].d - 1;
+                localTable[c].flag_slow = false;
             }
-            for (i = flag; i < max_len; i++) {
+            localTable[c].flag_speed = true;
+            for (i = localTable[c].x + 1; i < max_len; i++) {
                 if (my_ptr[i] > 0)
                     break;
             }
-            flag = i;
-            localTable[c].d = flag - localTable[c].x - 1;
-            localTable[c].flag =
-                (i < max_len) && (localTable[c].d < localTable[c].v);
-            localTable[c].v -= (unsigned int)(localTable[c].v > 0 &&
-                                              (rand() * 1.0 / RAND_MAX < P));
+            tmp = i - localTable[c].x;
+            if ((i < max_len) && tmp <= localTable[c].v) {
+                localTable[c].d = tmp;
+                localTable[c].flag_slow = true;
+                localTable[c].flag_speed = false;
+            }
+            if (localTable[c].v > 0 && (rand() * 1.0 / RAND_MAX < P))
+                localTable[c].v--;
         }
-        currRank = 0;
         MPI_Barrier(shmcomm);
-        if (currRank != ProcRank)
-            MPI_Recv(&currRank, 1, MPI_INT, ProcRank - 1, 4, MPI_COMM_WORLD,
-                     MPI_STATUS_IGNORE);
         for (c = 0; c < carPerRank; c++) {
+            // printf("%d-%d\n", ProcRank, my_ptr[localTable[c].x]);
             my_ptr[localTable[c].x]--;
+            // printf("%d-%d\n", ProcRank, my_ptr[localTable[c].x]);
             localTable[c].x += localTable[c].v;
             my_ptr[localTable[c].x]++;
         }
-        currRank = ProcRank + 1;
-        if (ProcRank != ProcNum - 1)
-            MPI_Send(&currRank, 1, MPI_INT, currRank, 4, MPI_COMM_WORLD);
     }
     MPI_Win_unlock_all(win);
     if (ProcRank == 0) {
@@ -130,7 +124,7 @@ int main(int argc, char const *argv[]) {
         printf("total time: %lf s\n",
                (double)(finish - start) / CLOCKS_PER_SEC);
     }
-    free(localTable);
+
     MPI_Win_free(&win);
     MPI_Comm_free(&shmcomm);
     MPI_Finalize();
