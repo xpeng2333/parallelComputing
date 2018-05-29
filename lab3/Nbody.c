@@ -44,14 +44,14 @@ void compute_force(body *thisBody, body *totalPtr, int bodyNum) {
         disX = totalPtr[i].thisPos.x - thisBody->thisPos.x;
         disY = totalPtr[i].thisPos.y - thisBody->thisPos.y;
         distance = disX * disX + disY * disY;
-        if (distance > 4)
+        if (distance < 4)
             continue;
-        Ftmp = 0.0000667 / distance;
+        Ftmp = 0.667 / distance;
         Fxy.x += Ftmp * disX / sqrt(distance);
         Fxy.y += Ftmp * disY / sqrt(distance);
     }
-    thisBody->thisAcceleration.x = Fxy.x / 1000;
-    thisBody->thisAcceleration.y = Fxy.y / 1000;
+    thisBody->thisAcceleration.x = Fxy.x / 1000.0;
+    thisBody->thisAcceleration.y = Fxy.y / 1000.0;
 }
 void compute_velocities(body *thisBody, double delta_t) {
     thisBody->thisVelocity.x += thisBody->thisAcceleration.x * delta_t;
@@ -59,10 +59,12 @@ void compute_velocities(body *thisBody, double delta_t) {
 }
 
 void compute_positions(body *thisBody, double delta_t) {
-    thisBody->thisPos.x += thisBody->thisVelocity.x * delta_t +
-                           thisBody->thisAcceleration.x * delta_t * delta_t / 2;
-    thisBody->thisPos.y += thisBody->thisVelocity.y * delta_t +
-                           thisBody->thisAcceleration.y * delta_t * delta_t / 2;
+    thisBody->thisPos.x +=
+        100 * (thisBody->thisVelocity.x * delta_t +
+               thisBody->thisAcceleration.x * delta_t * delta_t / 2.0);
+    thisBody->thisPos.y +=
+        100 * (thisBody->thisVelocity.y * delta_t +
+               thisBody->thisAcceleration.y * delta_t * delta_t / 2.0);
 }
 
 int main(int argc, char const *argv[]) {
@@ -72,13 +74,13 @@ int main(int argc, char const *argv[]) {
     }
     int bodyNum = atoi(argv[1]);
     int moveTime = atoi(argv[2]);
-    if (moveTime <= 0 || bodyNum <= 0) {
+    if (moveTime < 0 || bodyNum <= 0) {
         printf("小球数和时间数需大于0！\n");
         exit(-1);
     }
     int i, c;
     double currTime = 0.0;
-    double frequency=100.0;
+    double frequency = 100.0;
     double delta_t = 1.0 / frequency;
     clock_t start, finish;
     int ProcRank, ProcNum;
@@ -114,8 +116,8 @@ int main(int argc, char const *argv[]) {
         for (i = 0; i < bodyNum; i++) {
             my_ptr[i].thisAcceleration.x = 0.0;
             my_ptr[i].thisAcceleration.y = 0.0;
-            my_ptr[i].thisPos.x = i / sqrt(bodyNum);
-            my_ptr[i].thisPos.y = i % (int)sqrt(bodyNum);
+            my_ptr[i].thisPos.x = i % (int)sqrt(bodyNum);
+            my_ptr[i].thisPos.y = i / (int)sqrt(bodyNum);
             my_ptr[i].thisVelocity.x = 0.0;
             my_ptr[i].thisVelocity.y = 0.0;
         }
@@ -125,11 +127,11 @@ int main(int argc, char const *argv[]) {
         MPI_Barrier(shmcomm);
         for (c = 0; c < localBodyNum; c++) {
             compute_force(my_ptr + c, totalPtr, bodyNum);
-            compute_velocities(my_ptr + c, delta_t);
         }
         MPI_Barrier(shmcomm);
         for (c = 0; c < localBodyNum; c++) {
             compute_positions(my_ptr + c, delta_t);
+            compute_velocities(my_ptr + c, delta_t);
         }
         currTime += delta_t;
     }
@@ -138,6 +140,15 @@ int main(int argc, char const *argv[]) {
         finish = clock();
         printf("total time: %lf s\n",
                (double)(finish - start) / CLOCKS_PER_SEC);
+        /*
+ for (i = 0; i < bodyNum; i++) {
+     if (i % ((int)sqrt(bodyNum)) == 0)
+         printf("\n");
+     printf("|#%16.12lf,%16.12lf#|", my_ptr[i].thisPos.x,
+            my_ptr[i].thisPos.y);
+ }
+ printf("\n");
+ */
     }
     MPI_Win_free(&win);
     MPI_Comm_free(&shmcomm);
