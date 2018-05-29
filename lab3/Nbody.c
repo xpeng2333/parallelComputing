@@ -38,7 +38,9 @@ void compute_force(body *thisBody, body *totalPtr, int bodyNum) {
     double disX = 0.0;
     double disY = 0.0;
     double Ftmp;
-    force Fxy = {0.0, 0.0};
+    force Fxy;
+    Fxy.x = 0.0;
+    Fxy.y = 0.0;
     for (int i = 0; i < bodyNum; i++) {
         disX = totalPtr[i].thisPos.x - thisBody->thisPos.x;
         disY = totalPtr[i].thisPos.y - thisBody->thisPos.y;
@@ -77,11 +79,10 @@ int main(int argc, char const *argv[]) {
     }
     int i, c;
     double currTime = 0.0;
-    double delta_t = 1 / moveTime;
+    double delta_t = 1.0 / moveTime;
     clock_t start, finish;
     int ProcRank, ProcNum;
     MPI_Comm shmcomm;
-    char name[MPI_MAX_PROCESSOR_NAME];
     MPI_Init(NULL, NULL);
     MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL,
                         &shmcomm);
@@ -109,7 +110,7 @@ int main(int argc, char const *argv[]) {
     body *my_ptr = NULL;
 
     MPI_Win_lock_all(0, win);
-    MPI_Win_shared_query(win, i, &sz, &dispunit, totalPtr);
+    MPI_Win_shared_query(win, 0, &sz, &dispunit, &totalPtr);
     my_ptr = totalPtr + ProcRank * localBodyNum;
     if (ProcRank == 0) {
         for (i = 0; i < bodyNum; i++) {
